@@ -12,9 +12,9 @@ This python script using discord.py records the latest delted message in a disco
 5. profit
 
 ## Commands
-- **!snipe** (recalls the last deleted message)
-- **!snipeall** (recalls ALL deleted messages) (this may cause some problems)
-- **!snipen** (recalls 'n' deleted messages) ('n' is an integer greater than 0)
+- **!snipe** recalls the last deleted message
+- **!snipeall** recalls ALL deleted messages which MAY cause some problems
+- **!snipen** recalls 'n' deleted messages where 'n' is an integer greater than 0)
 
 ## Updates
 Initial upload: 2023/05/29
