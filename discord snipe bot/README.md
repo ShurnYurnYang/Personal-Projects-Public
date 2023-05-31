@@ -26,4 +26,4 @@ Initial upload: 2023/05/29
 - Added **Commands** and **Updates** section to README
 
 ## Notes
-- The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the timezone of your choice
+- The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the pytz timezone of your choice
