@@ -1,3 +1,4 @@
 # Personal-Projects-Public
-## Public Versions of my Personal Projects
-these projects were made in my spare time and completely for fun and/or experimentation
+public versions of my personal projects made in my spare time for fun and/or experimentation
+## Project List
+1. discord snipe bot: snipe deleted messages and recall them! (Updated: 2023/05/31)
