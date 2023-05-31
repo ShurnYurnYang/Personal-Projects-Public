@@ -8,8 +8,8 @@ This python script using discord.py records the latest deleted message in a disc
 1. Install Python, discord.py, and pytz
 2. Setup your bot through discord.com/developers/applications
 3. Copy your bot's token and paste it into the Bot Token.txt
-4. Run the py script
-5. profit
+4. Download files and run snipeBot.py
+5. profit???
 
 ## Commands
 - **!snipe** recalls the last deleted message
