@@ -37,7 +37,7 @@ async def on_message(message): #this function is called when a message is sent
             selected = int(selected) 
             if selected <= 0: #prevents 0 or negative recall length
                 await message.channel.send("Sorry, you seem to have selected an unrecognized recall length")
-            elif selected > 10: #prevents recall length being greater than 10 (max array length)
+            elif selected > 10 or selected > len(cachedMessage): #prevents recall length being greater than 10 (max array length) or greater than the current array length
                 await message.channel.send("Sorry, I don't remember that far back!")
             else: ##accepted
                 try: 
