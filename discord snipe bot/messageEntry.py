@@ -1,4 +1,4 @@
-class deletedEntry:
+class messageEntry:
     def __init__(self, message, author, time):
         self.attributes = [message, author, time]
 

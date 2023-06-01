@@ -1,7 +1,8 @@
 import discord #imports the discord.py library
 import pytz #imports pytz for converting utc to est
-from deletedEntry import deletedEntry
+from messageEntry import messageEntry
 from datetime import datetime #imports datetime and creates datetime object for converting 24hr to 12hr
+import os #imports functions for working with environment variables
 
 intents = discord.Intents.default() #sets the intents to default
 intents.message_content=True #gives the bot the permission to see message contents
@@ -17,8 +18,10 @@ async def on_ready(): #this function is called when the bot has finished logging
 @client.event
 async def on_message_delete(deletedMessage): #this function is called when a message has been deleted | 'message' is the message that was deleted
     global cachedMessage #makes the variable global across all events
-    entry = deletedEntry(deletedMessage.content, deletedMessage.author.display_name, datetime.strptime(deletedMessage.created_at.astimezone(pytz.timezone('US/Eastern')).strftime("%H:%M"), "%H:%M").strftime("%I:%M %p"))
-    cachedMessage.append(entry)                                                      #^^^converts UTC to EST and 12hr | striptime().strftime converts 24hr to 12hr | astimezone(pytz.timezone()).strftime converts UTC to est and formatted string             
+    entry = messageEntry(deletedMessage.content, deletedMessage.author.display_name, datetime.strptime(deletedMessage.created_at.astimezone(pytz.timezone('US/Eastern')).strftime("%H:%M"), "%H:%M").strftime("%I:%M %p"))
+    if len(cachedMessage) >= 10: #this block ensures the list size is max 10         #^^^converts UTC to EST and 12hr | striptime().strftime converts 24hr to 12hr | astimezone(pytz.timezone()).strftime converts UTC to est and formatted string             
+        del cachedMessage[0]  #deletes the first element (oldest remembered message)
+    cachedMessage.append(entry) #adds entry to the end of the list                                         
 
 @client.event
 async def on_message(message): #this function is called when a message is sent
@@ -34,27 +37,17 @@ async def on_message(message): #this function is called when a message is sent
             selected = int(selected) 
             if selected <= 0: #prevents 0 or negative recall length
                 await message.channel.send("Sorry, you seem to have selected an unrecognized recall length")
-            elif selected > len(cachedMessage): #prevents recall length being above length of memory
+            elif selected > 10: #prevents recall length being greater than 10 (max array length)
                 await message.channel.send("Sorry, I don't remember that far back!")
-            else:
+            else: ##accepted
                 try: 
                     for i in range(len(cachedMessage)-(selected),len(cachedMessage)): #END VALUE OF RANGE IS EXCLUSIVE
                         await message.channel.send(cachedMessage[i].returnString())  
                 except IndexError: #SHOULD NOT BE POSSIBLE
                     message.chanel.send("error???")
-        except ValueError:
+        except ValueError: ##catches error if the user enters non number
             await message.channel.send("Error: integer not detected directly after '!snipe'")
 
-def readBotToken(filePath): #this function reads from a file defined by the variable filePath
-    try: #try except block to catch errors
-        with open(filePath, 'r') as file: #opens the filePath as 'read' and creates object file
-            fileData = file.read() #sets fileData to the data from file.read
-            return fileData #returns fileData
-    except FileNotFoundError: #catches FileNotFoundError
-        print(f"File '{filePath}' not found.") #prints to console the file not found with the file path
-        return None #returns none
-    
-filePath = r"discord snipe bot\Bot Token.txt" #file path converted to raw string and backslashes doubled to avoid unicoode escape errors
-readData = readBotToken(filePath) #runs the read function and sets readData variable to the read string
+readData = os.environ['DISCORD_API_TOKEN'] #runs the read function and sets readData variable to the read string
 
 client.run(readData) #this runs the bot using the bot token using the readData variable as the bot token string
