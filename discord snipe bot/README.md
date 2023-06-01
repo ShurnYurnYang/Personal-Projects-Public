@@ -34,6 +34,10 @@ Initial upload: 2023/05/29
 - limited list to only 10 remembered messages to reduce memory usage and fix !snipeall giving a wall of text
 - **Updates** changed to **Changelog**
 
+### Version 1.2.1 (2023/06/01)
+- Bugfix: added check for requested recall length smaller than 10 but larger than current list size
+- Bugfix: replaced 'chanel' with 'channel' in line 47 (oops)
+
 ## Notes
 - The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the pytz timezone of your choice
 - Program has been rewritten to make it easy for hosting services to host (personally tested and hosted with railway)
