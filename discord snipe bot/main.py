@@ -44,7 +44,7 @@ async def on_message(message): #this function is called when a message is sent
                     for i in range(len(cachedMessage)-(selected),len(cachedMessage)): #END VALUE OF RANGE IS EXCLUSIVE
                         await message.channel.send(cachedMessage[i].returnString())  
                 except IndexError: #SHOULD NOT BE POSSIBLE
-                    message.chanel.send("error???")
+                    message.channel.send("error???")
         except ValueError: ##catches error if the user enters non number
             await message.channel.send("Error: integer not detected directly after '!snipe'")
 
