@@ -27,7 +27,7 @@ Initial upload: 2023/05/29
 
 ### Version 1.2 (2023/06/01)
 - Reworked code to make it friendly for hosting
-- Bot Token.txt has been removed and replaced by env variable 'DISCORD_API_TOKEN'
+- Bot Token.txt has been removed as the program now uses env variable 'DISCORD_API_TOKEN'
 - deletedEntry class has been replaced by better named messageEntry
 - snipeBot.py has been replaced by main.py for friendlier hosting
 - requirements.txt has been added for user and friendlier hosting
