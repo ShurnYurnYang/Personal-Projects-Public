@@ -2,40 +2,17 @@
 #include <iostream>
 #include <math.h>
 #include <SFML/Graphics.hpp>
+#include <list>
 using namespace std;
-
-/*
-to do
-
-basically
-
-find absolute vectors of the target and the missile
-
-tail to tip the missile vector to the target vector -> set pos of m to tip of t (1 time unit)
-
-use the missile vector as the radius of a cricle and find the intersection of said circle to the LOS vector -> create eq of circle x^2 + y^2 = r^2 with r as speed -> find intersection of LOS vector and circle by paramterizing the LOS vector then sub the x, y of circle with parameterized LOS -> produces position
-
-draw the missile vector from the intercept back to the tip of the target vector -> gives us a new vector
-
-orient the missile towards said new vector -> find the bearing of the new vector and change the bearing of the missile by x degrees until it matches the correct vector
-
-to calculate impact point find the ratio of the LOS portion of the intersect triangle and the real triangle
-
-use the ratio to calculate the POI by simply mulipying the real missile vector by the ratio
-
-seems simple enough :)
-
-TECHNICALLY ALL VALUES SHOULD BE RELATIVE TO THE MISSILE POS
-*/
 
 class Vector
 {
 public:
-    int posX;
-    int posY;
+    double posX;
+    double posY;
 
-    int magX;
-    int magY;
+    double magX;
+    double magY;
 
     Vector()
     {
@@ -46,7 +23,7 @@ public:
         magY = 1;
     }
 
-    Vector(int x, int y, int mx, int my)
+    Vector(double x, double y, double mx, double my)
     {
         posX = x;
         posY = y;
@@ -56,196 +33,576 @@ public:
     }
 };
 
-double getBearing(Vector vector);
-
-double getBearing(Vector vector) // should probably switch these to cases
+int getQuad(Vector vector)
 {
-    cout << "\n vectorX " << vector.magX;
-    cout << "\n vectorY " << vector.magY;
-    double raw = (atan2(vector.magX, vector.magY) * (180 / M_PI));
-    cout << "\n raw: " << raw;
-    if (vector.magX < 0)
+
+    if (vector.magX >= 0)
     {
-        if (vector.magY < 0)
-        {
-            return raw + 180;
-        }
-        else if (vector.magY > 0)
-        {
-            return 180 + raw;
+        if (vector.magY <= 0)
+        { // QI
+            return 1;
         }
         else
-        {
-            return 90;
-        }
-    }
-    else if (vector.magX > 0)
-    {
-        if (vector.magY < 0)
-        {
-            return 180 + raw;
-        }
-        else if (vector.magY > 0)
-        {
-            return 180 - raw;
-        }
-        else
-        {
-            return 270;
+        { // QIV
+            return 4;
         }
     }
     else
     {
-        if (vector.magY < 0)
-        {
-            return 0;
+        if (vector.magY <= 0)
+        { // QII
+            return 2;
         }
         else
-        {
-            return 180;
+        { // QIII
+            return 3;
         }
     }
-
-    return raw;
 }
 
-int getMagCX(double speed, double bearing);
-
-int getMagCX(double speed, double bearing) // should probably switch these to cases
+double secondToFrame(double in)
 {
-    bearing = bearing * (M_PI) / 180;
-    if (bearing >= 0 && bearing <= 90)
-    {
-        return -1 * round(speed * sin(bearing));
-    }
-    if (bearing > 90 && bearing <= 180)
-    {
-        return -1 * round(speed * cos(bearing - 90));
-    }
-    if (bearing > 180 && bearing <= 270)
-    {
-        return round(speed * sin(bearing - 180));
-    }
-    else
-    {
-        return round(speed * cos(bearing - 270));
-    }
+    double returnVal = in / 60;
+    return returnVal;
 }
-
-int getMagCY(double speed, double bearing);
-
-int getMagCY(double speed, double bearing) // should probably switch these to cases
-{
-    bearing = bearing * (M_PI) / 180;
-    if (bearing >= 0 && bearing <= 90)
-    {
-        return -1 * round(speed * cos(bearing));
-    }
-    if (bearing > 90 && bearing <= 180)
-    {
-        return round(speed * sin(bearing - 90));
-    }
-    if (bearing > 180 && bearing <= 270)
-    {
-        return round(speed * cos(bearing - 180));
-    }
-    else
-    {
-        return -1 * round(speed * sin(bearing - 270));
-    }
-}
-
-double getSpeed(Vector vector);
 
 double getSpeed(Vector vector)
 {
     return sqrt(pow(vector.magX, 2) + pow(vector.magY, 2));
 }
 
-Vector missileGuideV(Vector targetV, Vector missileV, int maxTurn);
-
-Vector missileGuideV(Vector targetV, Vector missileV, int maxTurn)
+double getAngle(Vector v1, Vector v2)
 {
+    double dotP = (v1.magX * v2.magX) + (v1.magY * v2.magY);
+    double magA = getSpeed(v1);
+    double magB = getSpeed(v2);
 
+    return acos(dotP / (magA * magB)) * (180 / M_PI);
+}
+
+Vector rotate(Vector missileV, Vector guideV, double maxTurn, double angleDiff)
+{
+    Vector invertV(missileV.posX, missileV.posY, -1 * missileV.posX, -1 * missileV.posY);
+    switch (getQuad(missileV))
+    {
+    case 1: // QI
+        if (missileV.magX == 0)
+        { // verticle edge case
+            if (getQuad(guideV) == 1 || getQuad(guideV) == 4)
+            { // turn clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // turn c-clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+        }
+        else if (missileV.magY == 0)
+        { // horizontal edge case
+            if (getQuad(guideV) == 3 || getQuad(guideV) == 4)
+            { // turn clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // turn c-clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+        }
+        else
+        { // QI
+            switch (getQuad(guideV))
+            {
+            case 1:
+                if (guideV.magX > missileV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            case 2:
+                if (angleDiff >= maxTurn) // counterclock
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+                break;
+            case 3:
+                // Vector invertV(missileV.posX, missileV.posY, -1 * missileV.posX, -1 * missileV.posY);
+                if (guideV.magX < invertV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            case 4:
+                if (angleDiff >= maxTurn) // clockwise
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+                break;
+            }
+        }
+        break;
+    case 2: // QII
+        if (missileV.magY == 0)
+        { // horizontal edge case
+            if (getQuad(guideV) == 2 || getQuad(guideV) == 1)
+            { // turn clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // turn c-clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+        }
+        else
+        {
+            switch (getQuad(guideV))
+            {
+            case 1:
+                if (angleDiff >= maxTurn) // clockwsie
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+                break;
+            case 2:
+                if (guideV.magX > missileV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            case 3:
+                if (angleDiff >= maxTurn) // counterclock
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+                break;
+            case 4:
+                // Vector invertV(missileV.posX, missileV.posY, -1 * missileV.posX, -1 * missileV.posY);
+                if (guideV.magX < invertV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            }
+        }
+        break;
+    case 3: // QIII
+        if (missileV.magX == 0)
+        { // vertical edge case
+            if (getQuad(guideV) == 2 || getQuad(guideV) == 3)
+            { // turn clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // turn c-clockwise
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+        }
+        else
+        {
+            switch (getQuad(guideV))
+            {
+            case 1:
+                // Vector invertV(missileV.posX, missileV.posY, -1 * missileV.posX, -1 * missileV.posY);
+                if (guideV.magX > invertV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            case 2:
+                if (angleDiff >= maxTurn) // clockwsie
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+                break;
+            case 3:
+                if (guideV.magX < missileV.magX)
+                { // clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                        return newV;
+                    }
+                }
+                else
+                { // counter clock
+                    if (angleDiff >= maxTurn)
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                        return newV;
+                    }
+                    else
+                    {
+                        Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                        return newV;
+                    }
+                }
+                break;
+            case 4:
+                if (angleDiff >= maxTurn) // counterclock
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+                break;
+            }
+        }
+        break;
+    case 4: // QIV
+        switch (getQuad(guideV))
+        {
+        case 1:
+            if (angleDiff >= maxTurn) // counterclock
+            {
+                Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                return newV;
+            }
+            else
+            {
+                Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                return newV;
+            }
+            break;
+        case 2:
+            // Vector invertV(missileV.posX, missileV.posY, -1 * missileV.posX, -1 * missileV.posY);
+            if (guideV.magX > invertV.magX)
+            { // clock
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // counter clock
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+            break;
+        case 3:
+            if (angleDiff >= maxTurn) // clockwsie
+            {
+                Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                return newV;
+            }
+            else
+            {
+                Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                return newV;
+            }
+            break;
+        case 4:
+            if (guideV.magX < missileV.magX)
+            { // clock
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(maxTurn) - missileV.magY * sin(maxTurn), missileV.magX * sin(maxTurn) + missileV.magY * cos(maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(angleDiff) - missileV.magY * sin(angleDiff), missileV.magX * sin(angleDiff) + missileV.magY * cos(angleDiff));
+                    return newV;
+                }
+            }
+            else
+            { // counter clock
+                if (angleDiff >= maxTurn)
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * maxTurn) - missileV.magY * sin(-1 * maxTurn), missileV.magX * sin(-1 * maxTurn) + missileV.magY * cos(-1 * maxTurn));
+                    return newV;
+                }
+                else
+                {
+                    Vector newV(missileV.posX, missileV.posY, missileV.magX * cos(-1 * angleDiff) - missileV.magY * sin(-1 * angleDiff), missileV.magX * sin(-1 * angleDiff) + missileV.magY * cos(-1 * angleDiff));
+                    return newV;
+                }
+            }
+            break;
+        }
+        break;
+    }
+    return missileV;
+}
+
+Vector missileGuideV(Vector targetV, Vector missileV, double maxTurn)
+{
     // create the LOS vector
     Vector losV(missileV.posX, missileV.posY, targetV.posX - missileV.posX, targetV.posY - missileV.posY);
 
     // calculate the "t" that leads to the intersect coordinate
     // does this by parameterizing the LOS vector and using it to solve the equation of circle quadratically
-    int a = pow(losV.magX, 2) + pow(losV.magY, 2);
+    double a = pow(losV.magX, 2) + pow(losV.magY, 2);
 
-    int b = (2 * (losV.magX) * (losV.posX - targetV.posX)) + (2 * (losV.magY) * (losV.posY - targetV.posY));
+    double b = (2 * (losV.magX) * (losV.posX - targetV.posX)) + (2 * (losV.magY) * (losV.posY - targetV.posY));
 
-    int c = pow((losV.posX - targetV.posX), 2) + pow((losV.posY - targetV.posY), 2) - pow(sqrt(pow(missileV.magX, 2) + pow(missileV.magY, 2)), 2);
+    double c = pow((losV.posX - targetV.posX), 2) + pow((losV.posY - targetV.posY), 2) - pow(sqrt(pow(missileV.magX, 2) + pow(missileV.magY, 2)), 2);
 
     double t = (2 * c) / ((-1 * b) + sqrt(pow(b, 2) - (4 * a * c))); // muller's method ignoring the larger case
 
-    // use said "t" to create a new vector from the intersect to the target vector tip
-    Vector guideV(round(losV.posX + (losV.magX * t)), round(losV.posY + (losV.magY * t)), (targetV.posX + targetV.magX) - round(losV.posX + losV.magX * t), (targetV.posY + targetV.magY) - round(losV.posY + losV.magY * t));
+    // use said "t" to create a new vector from the tail of the missile vector with magnitude that intercepts the head of the target
+    Vector guideV(missileV.magX, missileV.magY, (targetV.posX + targetV.magX) - (losV.posX + (losV.magX * t)), (targetV.posY + targetV.magY) - (losV.posY + (losV.magY * t)));
 
-    // get the bearing of the guide vector
-    double guideBr = getBearing(guideV);
+    return guideV;
+}
 
-    // get the bearing of the missile vector
-    double missileBr = getBearing(missileV);
+double LOSRatio(Vector targetV, Vector missileV)
+{
+    Vector losV(missileV.posX, missileV.posY, targetV.posX - missileV.posX, targetV.posY - missileV.posY);
 
-    // subtract the bearings to get the differential
-    double diff = guideBr - missileBr;
+    double a = pow(losV.magX, 2) + pow(losV.magY, 2);
 
-    cout << "\n magX: " << guideV.magX;
-    cout << "\n magY: " << guideV.magY;
-    cout << "\n guide bearing: " << guideBr;
-    cout << "\n bearing: " << missileBr;
-    cout << "\n diff: " << diff;
+    double b = (2 * (losV.magX) * (losV.posX - targetV.posX)) + (2 * (losV.magY) * (losV.posY - targetV.posY));
 
-    // determine which way to turn and set the bearing of the missile vector as such
-    if (diff <= 180)
-    { // turn right (add degrees) to bearing
-        if (diff >= maxTurn)
-        {
-            missileBr += maxTurn;
-        }
-        else
-        {
-            missileBr += diff;
-        }
-    }
-    else
-    { // turn left (subtract degrees to bearing)
-        if (diff >= maxTurn)
-        {
-            missileBr -= maxTurn;
-        }
-        else
-        {
-            missileBr -= diff;
-        }
-    } // now missileV has the proper bearing in the form of missileBr which must be then translated back into vector coords
+    double c = pow((losV.posX - targetV.posX), 2) + pow((losV.posY - targetV.posY), 2) - pow(sqrt(pow(missileV.magX, 2) + pow(missileV.magY, 2)), 2);
 
-    cout << "\n new bearing: " << missileBr;
+    double t = (2 * c) / ((-1 * b) + sqrt(pow(b, 2) - (4 * a * c))); // muller's method ignoring the larger case
 
-    double speed = getSpeed(missileV); // this gives the absolute speed of the missille which can be translated into coords using the baering to maintain constant speed
+    Vector tVector(0, 0, targetV.posX - (losV.posX + (losV.magX * t)), targetV.posY - (losV.posY + (losV.magY * t)));
 
-    if (missileBr < 0)
-    {
-        missileBr = 360 + missileBr;
-    }
-    else if (missileBr > 360)
-    {
-        missileBr = missileBr - 360;
-    }
+    double losVLength = sqrt(pow(losV.magX, 2) + pow(losV.magY, 2));
+    double TVecLength = sqrt(pow(tVector.magX, 2) + pow(tVector.magY, 2));
 
-    Vector returnV(missileV.posX, missileV.posY, getMagCX(speed, missileBr), getMagCY(speed, missileBr)); // gives the new EXACT vector of the missile
-    cout << "\n new magX: " << returnV.magX;
-    cout << "\n new magY: " << returnV.magY;
-    cout << "\n";
-    return returnV;
+    return losVLength / TVecLength;
 }
 
 Vector posUpdate(Vector vector)
 {
-    vector.posX += vector.magX;
-    vector.posY += vector.magY;
+    vector.posX += secondToFrame(vector.magX);
+    vector.posY += secondToFrame(vector.magY);
 
     return vector;
 }
@@ -253,20 +610,29 @@ Vector posUpdate(Vector vector)
 int main()
 {
 
-    Vector targetV(10, 10, 6, 1);
-    Vector missileV(1200, 1000, -1, -20);
+    double maxTurn = secondToFrame(22); // degrees per second
 
-    sf::RenderWindow window(sf::VideoMode(1920, 1080), "ProNav Simulation");
+    Vector targetV(0, 0, 45, 45);
+    Vector missileV(500, 800, 0, -100);
+
+    sf::RenderWindow window(sf::VideoMode(1000, 800), "ProNav Simulation");
     window.setPosition(sf::Vector2i(0, 0));
     window.setFramerateLimit(60);
 
-    sf::RectangleShape rect; // target
-    rect.setSize(sf::Vector2f(30, 10));
-    rect.setFillColor(sf::Color::Red);
+    sf::CircleShape target; // target
+    target.setRadius(14);
+    target.setFillColor(sf::Color::Red);
+    target.setOrigin(7, 7);
 
     sf::CircleShape circle; // missile
-    circle.setRadius(5);
+    circle.setRadius(6);
     circle.setFillColor(sf::Color::Blue);
+    circle.setOrigin(3, 3);
+
+    sf::CircleShape interceptTarget; // intercept point according to target
+    interceptTarget.setRadius(2);
+    interceptTarget.setFillColor(sf::Color::White);
+    interceptTarget.setOrigin(1, 1);
 
     while (window.isOpen())
     {
@@ -281,29 +647,31 @@ int main()
 
         window.clear();
 
-        int rectX = targetV.posX;
-        int rectY = targetV.posY;
-        rect.setPosition(rectX, rectY);
-        window.draw(rect);
+        double targetX = targetV.posX;
+        double targetY = targetV.posY;
+        target.setPosition(targetX, targetY);
+        window.draw(target);
 
-        targetV.posX = posUpdate(targetV).posX;
-        targetV.posY = posUpdate(targetV).posY;
-
-        int circleX = missileV.posX;
-        int circleY = missileV.posY;
-        circle.setPosition(circleX, circleY);
+        double missileX = missileV.posX;
+        double missileY = missileV.posY;
+        circle.setPosition(missileX, missileY);
         window.draw(circle);
 
-        Vector absoluteV = missileGuideV(targetV, missileV, 80);
+        double interceptRatio = LOSRatio(targetV, missileV);
+        // cout << "\n" << "intercept ratio: " << interceptRatio;
 
-        missileV.posX = posUpdate(absoluteV).posX;
-        missileV.posY = posUpdate(absoluteV).posY;
-
-        // missileV.posX = posUpdate(missileGuideV(targetV, missileV, 1)).posX;
-        // missileV.posY = posUpdate(missileGuideV(targetV, missileV, 1)).posY;
-
+        // intercept according to target
+        double interceptTx = targetV.posX + (targetV.magX * interceptRatio);
+        double interceptTy = targetV.posY + (targetV.magY * interceptRatio);
+        interceptTarget.setPosition(interceptTx, interceptTy);
+        window.draw(interceptTarget);
+        
         window.display();
-    }
 
+        //updates
+        targetV = posUpdate(targetV);
+        Vector guideV = missileGuideV(targetV, missileV, maxTurn);
+        missileV = posUpdate(rotate(missileV, guideV, maxTurn, getAngle(guideV, missileV)));
+    }
     return 0;
 }
