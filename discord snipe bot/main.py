@@ -18,19 +18,43 @@ async def on_ready(): #this function is called when the bot has finished logging
 @client.event
 async def on_message_delete(deletedMessage): #this function is called when a message has been deleted | 'message' is the message that was deleted
     global cachedMessage #makes the variable global across all events
-    entry = messageEntry(deletedMessage.content, deletedMessage.author.display_name, datetime.strptime(deletedMessage.created_at.astimezone(pytz.timezone('US/Eastern')).strftime("%H:%M"), "%H:%M").strftime("%I:%M %p"))
-    if len(cachedMessage) >= 10: #this block ensures the list size is max 10         #^^^converts UTC to EST and 12hr | striptime().strftime converts 24hr to 12hr | astimezone(pytz.timezone()).strftime converts UTC to est and formatted string             
-        del cachedMessage[0]  #deletes the first element (oldest remembered message)
-    cachedMessage.append(entry) #adds entry to the end of the list                                         
+    
+    if len(cachedMessage) >= 10: #this block ensures the list size is max 10      
+        cachedMessage.pop(0)  #deletes the first element (oldest remembered message)
+    
+    time_now = datetime.strptime(deletedMessage.created_at.astimezone(pytz.timezone('US/Eastern')).strftime("%H:%M"), "%H:%M").strftime("%I:%M %p")
+                                 #^^^converts UTC to EST and 12hr | striptime().strftime converts 24hr to 12hr | astimezone(pytz.timezone()).strftime converts UTC to est and formatted string
+
+    urlList = []
+    for image in deletedMessage.attachments: #iterates through list of attachments and appends the proxy url to the urllist list
+        urlList.append(image.proxy_url) 
+    
+    if len(urlList) != 0:
+        cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, True)) #adds entry to the end of the list with hasImage set TRUE
+    else:
+        cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, False)) #adds entry to the end of the list with hasImage set FALSE
+    #note that urlList is passed in all cases
+   
+
+@client.event
+async def on_message_edit(before, after): #this function is called when a message has been edited | before is the message before the edit
+    global cachedMessage
+
+    if len(cachedMessage) >= 10: #this block ensures the list size is max 10      
+        cachedMessage.pop(0)  #deletes the first element (oldest remembered message)
+
+    time_now = datetime.strptime(before.created_at.astimezone(pytz.timezone('US/Eastern')).strftime("%H:%M"), "%H:%M").strftime("%I:%M %p")
+
+    cachedMessage.append(messageEntry(before.content, before.author.display_name, time_now))
 
 @client.event
 async def on_message(message): #this function is called when a message is sent
     global cachedMessage
     if message.content == '!snipe': #checks if the message is sent using the bot identifier command
-        await message.channel.send(cachedMessage[-1].returnString()) #sends the cached message back
+        await message.channel.send(cachedMessage[-1]) #sends the cached message back
     elif message.content == '!snipeall': #checks for the '!snipeall' command
         for i in cachedMessage: #for loop iterates through the array and outputs ALL delted messages
-            await message.channel.send(i.returnString())
+            await message.channel.send(i)
     elif message.content.startswith('!snipe'): #checks for all other commands beginning with '!snipe'
         selected = message.content[6:len(message.content)] #substrings the command with all characters after '!snipe'
         try: #catches error from cast to int
@@ -42,7 +66,7 @@ async def on_message(message): #this function is called when a message is sent
             else: ##accepted
                 try: 
                     for i in range(len(cachedMessage)-(selected),len(cachedMessage)): #END VALUE OF RANGE IS EXCLUSIVE
-                        await message.channel.send(cachedMessage[i].returnString())  
+                        await message.channel.send(cachedMessage[i])  
                 except IndexError: #SHOULD NOT BE POSSIBLE
                     message.channel.send("error???")
         except ValueError: ##catches error if the user enters non number
