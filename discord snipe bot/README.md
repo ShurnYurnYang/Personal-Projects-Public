@@ -46,4 +46,4 @@ Initial upload: 2023/05/29
 ## Notes
 - The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the pytz timezone of your choice
 - Program has been rewritten to make it easy for hosting services to host (personally tested and hosted with railway)
-- If multiple attachments from the same message are recalled, the attachment link will be retained in the message
+- If multiple attachments from the same message are recalled, the attachment link will be retained in the recall message
