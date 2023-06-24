@@ -41,9 +41,9 @@ Initial upload: 2023/05/29
 ### Version 1.3 (2023/06/23)
 - Support for recalling edited messages added
 - Support for recalling images and other attachments added
-- Contributed by @BilJJ and edited by @ShurnYurnYang
+- Contributed by @BillJJ and edited by @ShurnYurnYang
 
 ## Notes
 - The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the pytz timezone of your choice
 - Program has been rewritten to make it easy for hosting services to host (personally tested and hosted with railway)
-- If multiple attachments from the same message is recalled, the attachment link will be retained in the message
+- If multiple attachments from the same message are recalled, the attachment link will be retained in the message
