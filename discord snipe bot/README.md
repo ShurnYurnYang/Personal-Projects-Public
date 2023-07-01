@@ -44,7 +44,7 @@ Initial upload: 2023/05/29
 - Support for recalling images and other attachments added
 - Contributed by @BillJJ and edited by @ShurnYurnYang
 
-## Version 1.4 (2023/06/30)
+### Version 1.4 (2023/06/30)
 - **!clear** function added which clears all logged messages
 - Bugfix: added error catch for calling a snipe when no messages have been logged
 
