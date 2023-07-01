@@ -15,6 +15,7 @@ This python script using discord.py records the latest deleted message in a disc
 - **!snipe** recalls the last deleted message
 - **!snipeall** recalls ALL deleted messages
 - **!snipen** recalls 'n' deleted messages where 'n' is an integer greater than 0 but not greater than 10
+- **!clear** clears all logged messages
 
 ## Changelog
 Initial upload: 2023/05/29
@@ -42,6 +43,10 @@ Initial upload: 2023/05/29
 - Support for recalling edited messages added
 - Support for recalling images and other attachments added
 - Contributed by @BillJJ and edited by @ShurnYurnYang
+
+## Version 1.4 (2023/06/30)
+- **!clear** function added which clears all logged messages
+- Bugfix: added error catch for calling a snipe when no messages have been logged
 
 ## Notes
 - The UTC conversion timezone is EST by default, to change the timezone replace 'US/Eastern' with the pytz timezone of your choice
