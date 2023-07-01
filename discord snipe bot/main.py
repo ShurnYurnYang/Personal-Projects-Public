@@ -29,11 +29,14 @@ async def on_message_delete(deletedMessage): #this function is called when a mes
     for image in deletedMessage.attachments: #iterates through list of attachments and appends the proxy url to the urllist list
         urlList.append(image.proxy_url) 
     
-    if len(urlList) != 0:
-        cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, True)) #adds entry to the end of the list with hasImage set TRUE
+    if deletedMessage.author.id == 693572821456257107: ##JAMY CONTINGENCY DELETE BEFORE MERGING WITH PUBLIC
+        await deletedMessage.channel.send("james yu contained")
     else:
-        cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, False)) #adds entry to the end of the list with hasImage set FALSE
-    #note that urlList is passed in all cases
+        if len(urlList) != 0:
+            cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, True)) #adds entry to the end of the list with hasImage set TRUE
+        else:
+            cachedMessage.append(messageEntry(deletedMessage.content, deletedMessage.author.display_name, time_now, urlList, False)) #adds entry to the end of the list with hasImage set FALSE
+        #note that urlList is passed in all cases
    
 
 @client.event
@@ -50,8 +53,14 @@ async def on_message_edit(before, after): #this function is called when a messag
 @client.event
 async def on_message(message): #this function is called when a message is sent
     global cachedMessage
-    if message.content == '!snipe': #checks if the message is sent using the bot identifier command
-        await message.channel.send(cachedMessage[-1]) #sends the cached message back
+    if message.content == '!clear': #clear function
+        cachedMessage.clear()
+        await message.channel.send("Log Cleared!")
+    elif message.content == '!snipe': #checks if the message is sent using the bot identifier command
+        try:
+            await message.channel.send(cachedMessage[-1]) #sends the cached message back
+        except IndexError:
+            await message.channel.send("No messages logged.")
     elif message.content == '!snipeall': #checks for the '!snipeall' command
         for i in cachedMessage: #for loop iterates through the array and outputs ALL delted messages
             await message.channel.send(i)
@@ -68,7 +77,7 @@ async def on_message(message): #this function is called when a message is sent
                     for i in range(len(cachedMessage)-(selected),len(cachedMessage)): #END VALUE OF RANGE IS EXCLUSIVE
                         await message.channel.send(cachedMessage[i])  
                 except IndexError: #SHOULD NOT BE POSSIBLE
-                    message.channel.send("error???")
+                    await message.channel.send("error???")
         except ValueError: ##catches error if the user enters non number
             await message.channel.send("Error: integer not detected directly after '!snipe'")
 
