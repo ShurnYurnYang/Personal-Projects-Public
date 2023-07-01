@@ -1,7 +1,7 @@
 # Personal Projects - Public Edition
 Public versions of my personal projects made in my spare time for fun, learning/experimentation, and just plain messing around
 ## Project List
-**1. discord snipe bot:** snipe deleted or edited messages/images and recall them! (Updated: 2023/06/23)
+**1. discord snipe bot:** snipe deleted or edited messages/images and recall them! (Updated: 2023/06/30)
 
 **2. twitter api scraper:** basic experiments with the old twitter API and python (Uploaded: 2023/06/14)
 
